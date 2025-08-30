@@ -115,15 +115,35 @@ if best_class is not None:
 
     keep = nms(boxes, scores, iou_threshold=0.5)
     draw = ImageDraw.Draw(img_resized)
+    mask = np.zeros((height, width), dtype=np.uint8)
+
     for i in keep:
         left, top, right, bottom = boxes[i]
         print(f"Box NMS: left={left}, top={top}, right={right}, bottom={bottom}, score={scores[i]}")
         draw.rectangle([left, top, right, bottom], outline='red', width=2)
+        # Preencher a máscara com 1 dentro da bounding box
+        mask[max(top,0):min(bottom,height), max(left,0):min(right,width)] = 1
+
+    # Aplicar máscara: pixels fora das caixas ficam pretos
+    img_np = np.array(img_resized)
+    img_np[mask == 0] = 0
+    img_segmented = Image.fromarray(img_np)
+
+    # Recortar zona de interesse detectada
+    ys, xs = np.where(mask == 1)
+    if len(xs) > 0 and len(ys) > 0:
+        left_crop, right_crop = xs.min(), xs.max()
+        top_crop, bottom_crop = ys.min(), ys.max()
+        img_cropped = img_segmented.crop((left_crop, top_crop, right_crop, bottom_crop))
+        img_final = img_cropped.resize((640, 640), Image.LANCZOS)
+    else:
+        img_final = img_segmented.resize((640, 640), Image.LANCZOS)
+
     print(f"Total de bounding boxes após NMS: {len(keep)}")
     plt.figure(figsize=(8,8))
-    plt.imshow(img_resized)
-    plt.title('Detecções com Bounding Boxes (NMS)')
+    plt.imshow(img_final)
+    plt.title('Segmentação recortada e redimensionada 640x640')
     plt.axis('off')
     plt.show()
 else:
-    print("Nenhuma classe detectada com score válido.")
+    print("Nenhuma classe detectada com score significativo.")
