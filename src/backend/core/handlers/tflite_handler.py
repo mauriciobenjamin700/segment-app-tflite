@@ -1,3 +1,5 @@
+from typing import Any
+
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw
@@ -27,7 +29,9 @@ class TFLiteHandler:
     def get_model_input_height(self) -> int:
         return self.input_details[0]["shape"][2]
 
-    def load_image(self, image_path: str) -> np.ndarray:
+    def load_image(
+        self, image_path: str
+    ) -> np.ndarray[Any, np.dtype[np.uint8]]:
         image = Image.open(image_path)
         image = image.convert("RGB")
         image = image.resize(
@@ -36,13 +40,17 @@ class TFLiteHandler:
         self.image = np.array(image)
         return self.image
 
-    def map_image_to_input_tensor(self, image: np.ndarray) -> np.ndarray:
+    def map_image_to_input_tensor(
+        self, image: np.ndarray[Any, np.dtype[np.uint8]]
+    ) -> np.ndarray[Any, np.dtype[np.float32]]:
         input_data = np.expand_dims(image, axis=0).astype(np.float32)
         if self.input_details[0]["dtype"] == np.float32:
             input_data = (input_data - 127.5) / 127.5
         return input_data
 
-    def predict(self, input_data: np.ndarray) -> np.ndarray:
+    def predict(
+        self, input_data: np.ndarray[Any, np.dtype[np.float32]]
+    ) -> np.ndarray[Any, np.dtype[np.float32]]:
         self.interpreter.set_tensor(self.input_details[0]["index"], input_data)
         self.interpreter.invoke()
         output_data = self.interpreter.get_tensor(
@@ -50,7 +58,9 @@ class TFLiteHandler:
         )
         return output_data
 
-    def process_yolo_output(self, output_data: np.ndarray):
+    def process_yolo_output(
+        self, output_data: np.ndarray[Any, np.dtype[np.float32]]
+    ):
         num_classes = len(self.labels)
         scores_start = (
             output_data.shape[1] - num_classes
@@ -160,7 +170,7 @@ class TFLiteHandler:
         plt.axis("off")
         plt.show()
 
-    def __call__(self, image_path: str) -> np.ndarray:
+    def __call__(self, image_path: str) -> Image.Image | None:
         image = self.load_image(image_path)
         tensor = self.map_image_to_input_tensor(image)
         result = self.predict(tensor)
